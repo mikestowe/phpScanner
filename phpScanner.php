@@ -3,7 +3,7 @@
 Plugin Name: phpScanner
 Plugin URI: http://www.mikestowe.com/phpScanner
 Description: A Rendered Page Error Scanner for PHP
-Version: 1.3 - September 22, 2010
+Version: 1.4 - October 5, 2010
 Author: Michael Stowe
 Author URI: http://www.mikestowe.com
 License: GPL-2
@@ -42,6 +42,10 @@ class phpScan {
 		
 		$domain = explode('/',$_GET['url']);
 		$this->domain = array_shift($domain).'//'.array_shift($domain).array_shift($domain);
+
+		if(isset($_GET['login'])) {
+			$this->login();
+		}
 		
 		$this->test($_GET['url']);
 	}
@@ -50,6 +54,21 @@ class phpScan {
 	function __destruct() {
 		echo '</table><br />';
 		echo '<script language="javascript">var rows = $("#sortTable tr").size() - 1; document.write("<strong>Scan Completed.  "+rows+" Pages Checked.</strong>"); $("#sortTable").tablesorter();</script>';
+	}
+	
+	
+	function login() {
+		$data = array();
+		foreach($_GET['login_fields'] as $field) {
+			$data[$field['name']] = $data[$field['value']];
+		}
+		
+	 	$ch = curl_init($_GET['login_url']);
+		curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $_GET['login_method']);
+		curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+		curl_exec($ch);
+		
+		$this->test($_GET['login_url']);
 	}
 	
 	
@@ -156,7 +175,7 @@ class phpScan {
 				if($temp_domain == $this->domain && (count($this->spidered) < $_GET['limit'])) {
 					$ext = explode('.',$temp_link);
 					$ext = explode('?',array_pop($ext));
-					if(in_array($ext[0],$this->ext)) {
+					if(in_array($ext[0],$this->ext) || isset($_GET['scanallext'])) {
 						$this->test($temp_link);
 					}
 				}
@@ -426,7 +445,7 @@ e&&e.document?e.document.compatMode==="CSS1Compat"&&e.document.documentElement["
 </head>
 <body>
 <h1>phpScanner</h1>
-<div id="version">1.3</div>
+<div id="version">1.4</div>
 <?php
 if(isset($_GET['url'])) { new phpScan; } else {
 ?>
@@ -434,12 +453,25 @@ if(isset($_GET['url'])) { new phpScan; } else {
 <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="get">
 Website Url: <input type="text" name="url" value="http://" style="width: 300px;" /> <a href="javascript: void(0);" title="Urls should start with http:// and folders should have the trailing slash (/) after their name"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
 Scan Extensions: <input type="text" name="extensions" value="xhtml, html, htm, php" style="width: 272px;" /> <a href="javascript: void(0);" title="List all extensions you want to scan using a comma (,) to separate them"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
+<strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -- OR --</strong> <input type="checkbox" name="scanallext" value="1" /> Scan ALL Extensions <a href="javascript:void(0);" title="This will scan ALL items linked and will take much longer to run.  Use only if you have ModRewrite enabled without using standard extentions in the URIs"><img src="prob_error.jpg" border="0" align="top" /></a><br /><br />
 Exclude Urls Containing: <input type="text" name="exclude" value="" style="width: 232px;" /> <a href="javascript: void(0);" title="If a url contains this it will be excluded.  Use a comma (,) to separate them"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
 Max Pages to Spider: <input type="text" name="limit" value="500" style="width: 252px;" /> <a href="javascript: void(0);" title="Once this limit is reached, phpScanner will stop checking links"><img src="notfound.jpg" border="0" align="bottom"/></a><br /><br />
 <input type="checkbox" name="show_noresponse" value="1" checked /> Show pages that did not respond <a href="javascript: void(0);" title="These are pages that could not be checked for errors (ie: 404s)"><img src="notfound.jpg" border="0" align="absmiddle"/></a><br />
 <input type="checkbox" name="show_noerror" value="1" checked /> Show pages that did not have any errors<br />
 <input type="checkbox" name="continueonerror" value="1" checked /> Spider links from pages with errors<br />
 <br /><br />
+<input type="checkbox" name="login" value="1" onClick="if(this.checked) { $('#login').show('slow'); } else { $('#login').hide('slow'); }"> Use form login (GET/ POST)<br />
+<div style="display: none; border: 1px solid #ccc; padding: 5px; margin-bottom: 5px;" id="login">Form Url: <input type="text" name="login_url" style="width: 290px;" value="http://" /> <a href="javascript: void(0);" title="The URI to send the data to, DO NOT include query strings"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
+Form Method: <select name="login_method" style="width: 266px;" /><option value="GET">GET</option><option value="POST">POST</option></select><br />
+Form Field Name &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; Form Field Value<br />
+<input type="text" name="login_fields[1][name]" /> <input type="text" name="login_fields[1][value]" /> <a href="javascript: void(0);" title="Example: Box[1] = username, Box[2] = demo"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
+<input type="text" name="login_fields[2][name]" /> <input type="text" name="login_fields[2][value]" /> <a href="javascript: void(0);" title="Example: Box[1] = password, Box[2] = demopass"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
+<input type="text" name="login_fields[3][name]" /> <input type="text" name="login_fields[3][value]" /><br />
+<input type="text" name="login_fields[4][name]" /> <input type="text" name="login_fields[4][value]" /><br />
+<input type="text" name="login_fields[5][name]" /> <input type="text" name="login_fields[5][value]" /><br /><br />
+<small>** note phpScanner will continue to scan secured files until it is logged out, which may happen inadvertantly by spidering a logout link.  To prevent this from happening it is recommended that you add the logout url (ie logout.php or ?logout) to the "Exclude Urls Containing" field above.</small>
+</div>
+<br />
 <input type="submit" value="Run Check... this may take several minutes"  style="width: 395px; text-align: center;" onclick="this.value='processing...';" />
 </form>
 </div>
