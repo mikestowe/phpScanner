@@ -36,7 +36,7 @@ class phpScan {
         }
         
         $exc = explode(',',$_GET['exclude']);
-        $this->exclude = array('javascript:');
+        $this->exclude = array('javascript:', 'mailto:');
         foreach($exc as $temp_exc) {
             $this->exclude[] = trim(str_replace('/','\\/',$temp_exc));
         }
@@ -74,6 +74,11 @@ class phpScan {
     
     
     function test($url) {
+        if(preg_match('/#/', $url) && !isset($_GET['include_hashtag'])) {
+            $url = explode('#', $url);
+            $url = $url[0];
+        }
+        
         $exclude = false;
         foreach($this->exclude as $exc) {
             if(!empty($exc) && preg_match('/'.$exc.'/i',$url)) {
@@ -126,11 +131,14 @@ class phpScan {
     
     
     function validate($content,$url) {
-        if(empty($content)) {
-            echo '<tr><td id="url">'.$this->link($url).'</td><td id="response">'.ERROR.'</td></tr>';
-            if($_GET['continueonerror'] == 1) { return true; } else { return false; }
-        } elseif (preg_match('/<b>.+<\/b>:.+ in <b>\/.+<\/b> on line <b>[0-9]+<\/b><br( \/)?>/ism',$content,$error)) {
+        if (preg_match('/<b>.+<\/b>:.+ in <b>\/.+<\/b> on line <b>[0-9]+<\/b><br( \/)?>/ism',$content,$error)) {
             echo '<tr><td id="url">'.$this->link($url).'</td><td id="response"><a class="checkedlink" href="javascript:void(0);" title="'.strip_tags($error[0]).'">'.ERROR.'</a></td></tr>';
+            if($_GET['continueonerror'] == 1) { return true; } else { return false; }
+        } elseif (preg_match('/(?<=Stack Trace:)([^<]+)/i', $content, $error)) {
+            echo '<tr><td id="url">'.$this->link($url).'</td><td id="response"><a class="checkedlink" href="javascript:void(0);" title="'.strip_tags($error[0]).'">'.ERROR.'</a></td></tr>';
+            if($_GET['continueonerror'] == 1) { return true; } else { return false; }
+        } elseif (empty($content) || preg_match('/unhandled exception/i', $content)) {
+            echo '<tr><td id="url">'.$this->link($url).'</td><td id="response">'.ERROR.'</td></tr>';
             if($_GET['continueonerror'] == 1) { return true; } else { return false; }
         } elseif (!preg_match('/<\/html>/',$content)) {
             $headers = @get_headers($url);
@@ -478,12 +486,13 @@ if(isset($_GET['url'])) { new phpScan; } else {
 <form action="<?php echo $_SERVER['PHP_SELF']; ?>" method="get">
 Website Url: <input type="text" name="url" value="http://" style="width: 300px;" /> <a href="javascript: void(0);" title="Urls should start with http:// and folders should have the trailing slash (/) after their name"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
 Scan Extensions: <input type="text" name="extensions" value="xhtml, html, htm, php" style="width: 272px;" /> <a href="javascript: void(0);" title="List all extensions you want to scan using a comma (,) to separate them"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
-<strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -- OR --</strong> <input type="checkbox" name="scanallext" value="1" /> Scan ALL Extensions <a href="javascript:void(0);" title="This will scan ALL items linked and will take much longer to run.  Use only if you have ModRewrite enabled without using standard extentions in the URIs"><img src="prob_error.jpg" border="0" align="top" /></a><br /><br />
+<strong>&nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; &nbsp; -- OR --</strong> <input type="checkbox" name="scanallext" value="1" /> Scan ALL Extensions <a href="javascript:void(0);" title="This will scan ALL items linked and will take much longer to run.  Use only if you have ModRewrite enabled without using standard extensions in the URIs"><img src="prob_error.jpg" border="0" align="top" /></a><br /><br />
 Exclude Urls Containing: <input type="text" name="exclude" value="" style="width: 232px;" /> <a href="javascript: void(0);" title="If a url contains this it will be excluded.  Use a comma (,) to separate them"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
 Max Pages to Spider: <input type="text" name="limit" value="500" style="width: 252px;" /> <a href="javascript: void(0);" title="Once this limit is reached, phpScanner will stop checking links"><img src="notfound.jpg" border="0" align="bottom"/></a><br /><br />
 <input type="checkbox" name="show_noresponse" value="1" checked /> Show pages that did not respond <a href="javascript: void(0);" title="These are pages that could not be checked for errors (ie: 404s)"><img src="notfound.jpg" border="0" align="absmiddle"/></a><br />
 <input type="checkbox" name="show_noerror" value="1" checked /> Show pages that did not have any errors<br />
 <input type="checkbox" name="continueonerror" value="1" checked /> Spider links from pages with errors<br />
+<input type="checkbox" name="include_hashtag" value="1" /> Include #hashtag in url checks <a href="javascript: void(0);" title="This will check index.php and index.php#hashtag"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
 <br /><br />
 <input type="checkbox" name="login" value="1" onClick="if(this.checked) { $('#login').show('slow'); } else { $('#login').hide('slow'); }"> Use form login (GET/ POST)<br />
 <div style="display: none; border: 1px solid #ccc; padding: 5px; margin-bottom: 5px;" id="login">Form Url: <input type="text" name="login_url" style="width: 290px;" value="http://" /> <a href="javascript: void(0);" title="The URI to send the data to, DO NOT include query strings"><img src="notfound.jpg" border="0" align="bottom"/></a><br />
