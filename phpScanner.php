@@ -140,7 +140,7 @@ class phpScan {
         } elseif (empty($content) || preg_match('/unhandled exception/i', $content)) {
             echo '<tr><td id="url">'.$this->link($url).'</td><td id="response">'.ERROR.'</td></tr>';
             if($_GET['continueonerror'] == 1) { return true; } else { return false; }
-        } elseif (!preg_match('/<\/html>/',$content)) {
+        } elseif (preg_match('/<html( [^>]*)*>/i',$content) && !preg_match('/<\/html( [^>]*)*?>/i',$content)) {
             $headers = @get_headers($url);
             if($this->content_type('html',$headers)) {
                 echo '<tr><td id="url">'.$this->link($url).'</td><td id="response">'.PROB_ERROR.'</td></tr>';
